@@ -1,12 +1,11 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-export default function WaveForecastScreen() {
+export default function ShopScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.logo}>NAMI</Text>
-        <Text style={styles.placeholder}>波予報</Text>
+        <Text style={styles.placeholder}>ショップ</Text>
         <Text style={styles.sub}>Phase 2 で実装予定</Text>
       </View>
     </SafeAreaView>
@@ -16,7 +15,6 @@ export default function WaveForecastScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0E1624' },
   content: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-  logo: { fontSize: 32, fontWeight: '900', color: '#2DD4BF', letterSpacing: 2 },
   placeholder: { fontSize: 20, fontWeight: '700', color: '#F0F4F8' },
   sub: { fontSize: 13, color: '#6B7280' },
 });
