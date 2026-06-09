@@ -14,6 +14,7 @@ import { getWindCondition } from '@/lib/wind';
 import { scoreDailyEntry } from '@/lib/scoring';
 import { computeSimpleLevelScore, scoreToStars } from '@/lib/levelScore';
 import type { Level } from '@/lib/level';
+import { getWaveSizeLabel } from '@/lib/wave';
 
 // ── ヘルパー ──────────────────────────────────────────────────────
 const COMPASS = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'] as const;
@@ -296,7 +297,7 @@ function DayRow({
       {/* 波高・周期 */}
       <View style={styles.colWave}>
         <Text style={styles.dayWaveH}>{entry.maxWaveHeight.toFixed(1)}m</Text>
-        <Text style={styles.dayPeriod}>{Math.round(entry.maxWavePeriod)}s</Text>
+        <Text style={styles.dayPeriod}>{getWaveSizeLabel(entry.maxWaveHeight)}  {Math.round(entry.maxWavePeriod)}s</Text>
       </View>
 
       {/* 風 */}

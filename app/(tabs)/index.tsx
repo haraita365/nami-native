@@ -14,6 +14,7 @@ import { getWeatherAlert } from '@/lib/alert';
 import { AREA_ORDER } from '@/lib/spots';
 import { useAreaWaveData, type AreaSpotRow } from '@/lib/useAreaWaveData';
 import { useTsunamiData } from '@/lib/useTsunamiData';
+import { getWaveSizeRangeLabel } from '@/lib/wave';
 
 // ── ヘルパー ──────────────────────────────────────────────────────
 function stars(n: number): string {
@@ -332,7 +333,7 @@ function BestSpotCard({
       </View>
       <View style={styles.summaryDetail}>
         <Text style={styles.summaryDetailText}>
-          {row.waveHeight.toFixed(1)}m  周期{row.wavePeriod.toFixed(0)}s
+          {row.waveHeight.toFixed(1)}m  {getWaveSizeRangeLabel(row.waveMin, row.waveMax)}  周期{row.wavePeriod.toFixed(0)}s
         </Text>
         <Text style={[styles.summaryWindText, { color: windColor(row.windCondition) }]}>
           {windLabel(row.windCondition, row.windDirection)}  {row.windSpeed.toFixed(1)}m/s
@@ -372,7 +373,7 @@ function SpotRow({
           )}
         </View>
         <Text style={styles.spotWave}>
-          {row.waveHeight.toFixed(1)}m ({row.waveMin.toFixed(1)}–{row.waveMax.toFixed(1)}) · 周期{row.wavePeriod.toFixed(0)}s
+          {row.waveHeight.toFixed(1)}m · {getWaveSizeRangeLabel(row.waveMin, row.waveMax)}  周期{row.wavePeriod.toFixed(0)}s
         </Text>
         <View style={styles.spotMetaRow}>
           <Text style={[styles.spotWind, { color: wc }]}>
