@@ -314,7 +314,11 @@ export function getDailyForecast(slots: HourlySlot[]): DailyEntry[] {
 // ── Current-conditions fetch (map layer) ──────────────────────────
 // current= エンドポイントのみ使用。fetch時間・通信量を ~400分の1に削減。
 export async function fetchCurrentConditions(lat: number, lng: number): Promise<HourlySlot> {
-  const to = (): RequestInit => ({ signal: AbortSignal.timeout(6000) });
+  const to = (): RequestInit => {
+    const ctrl = new AbortController();
+    setTimeout(() => ctrl.abort(), 12000);
+    return { signal: ctrl.signal };
+  };
   const [marineJson, weatherJson] = await Promise.all([
     fetch(
       `https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lng}` +
@@ -372,7 +376,11 @@ async function fetchDailyRaw(lat: number, lng: number): Promise<{
   marine: Record<string, (number | null)[]>;
   weather: Record<string, (number | null)[]>;
 }> {
-  const to = (): RequestInit => ({ signal: AbortSignal.timeout(6000) });
+  const to = (): RequestInit => {
+    const ctrl = new AbortController();
+    setTimeout(() => ctrl.abort(), 12000);
+    return { signal: ctrl.signal };
+  };
   const [marineJson, weatherJson] = await Promise.all([
     fetch(
       `https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lng}` +
@@ -458,7 +466,7 @@ export async function fetchSpotDataFull(lat: number, lng: number): Promise<{
   const hourlyDaily = getDailyForecast(slots);
 
   if (dailyRawResult.status === 'rejected' || dailyRawResult.value.time.length === 0) {
-    console.error('[NAMI] fetchDailyRaw failed, falling back to hourly-only daily');
+    console.warn('[NAMI] fetchDailyRaw failed, falling back to hourly-only daily');
     return { slots, daily: hourlyDaily, waveHeightDelta };
   }
 
