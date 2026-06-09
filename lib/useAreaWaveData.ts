@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import {
   fetchSpotData, extractSlots, getCurrentSlot,
-  nowJST, getYesterdayJSTStr,
+  nowJST, getYesterdayJSTStr, NAMI_FETCH_ERRORS,
 } from './api';
 import { getWindCondition } from './wind';
 import { getConfidenceStars } from './wave';
@@ -86,7 +86,7 @@ async function fetchAreaRows(area: string): Promise<AreaSpotRow[]> {
     }
   });
 
-  if (rows.length === 0) throw new Error('全スポットのデータ取得に失敗しました');
+  if (rows.length === 0) throw new Error('全スポット失敗 / ' + NAMI_FETCH_ERRORS.slice(0, 3).join(' | '));
   return rows;
 }
 
