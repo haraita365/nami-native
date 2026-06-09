@@ -6,7 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Svg, Path, Line, Circle } from 'react-native-svg';
 import { SPOTS } from '@/lib/spots';
-import { fetchSpotDataFull, getCurrentSlot, nowJST } from '@/lib/api';
+import { fetchSpotDataFull, getCurrentSlot, nowJST, getTodaySlots } from '@/lib/api';
 import { getWindCondition, getDirectionLabel } from '@/lib/wind';
 import { formatWaveRange, getWaveSizeRangeLabel, getConfidenceStars } from '@/lib/wave';
 import { scoreSlot } from '@/lib/scoring';
@@ -213,6 +213,9 @@ export default function SpotDetailScreen() {
           </View>
         </View>
 
+        {/* ── 波高推移チャート ─────────────────────────── */}
+        <WaveChart slots={slots} />
+
         {/* ── 風・うねり詳細 ───────────────────────────── */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>風・うねり詳細</Text>
@@ -244,6 +247,79 @@ export default function SpotDetailScreen() {
 }
 
 // ── 小コンポーネント ──────────────────────────────────────────────
+// buildChartPath（lib/scoring.ts）と同じ xs / y 計算式を流用。
+// min/max を統一スケールで描くため maxH を外部計算している。
+const WAVE_XS = [0, 52, 103, 154, 205, 256, 308];
+const WAVE_SLOT_HRS = [6, 9, 12, 15, 18, 21, 24]; // 24 = 翌0時
+
+function WaveChart({ slots }: { slots: import('@/lib/api').HourlySlot[] }) {
+  const todaySlots = getTodaySlots(slots);
+  if (todaySlots.length === 0) return null;
+
+  const midH = todaySlots.map((s) => s.waveHeight);
+  const loH  = todaySlots.map((s) => s.waveHeightMin);
+  const hiH  = todaySlots.map((s) => s.waveHeightMax);
+
+  const maxH = Math.max(2.0, ...hiH);
+  const toY  = (h: number) => Math.max(8, Math.min(82, 90 - (h / maxH) * 72));
+
+  const midPts = midH.map((h, i) => ({ x: WAVE_XS[i] ?? 308, y: toY(h) }));
+  const loPts  = loH.map((h, i)  => ({ x: WAVE_XS[i] ?? 308, y: toY(h) }));
+  const hiPts  = hiH.map((h, i)  => ({ x: WAVE_XS[i] ?? 308, y: toY(h) }));
+
+  const midLine = midPts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ');
+  const midArea = `${midLine} L308,90 L0,90 Z`;
+  const bandPath = [
+    ...hiPts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`),
+    ...[...loPts].reverse().map((p) => `L${p.x},${p.y}`),
+    'Z',
+  ].join(' ');
+
+  // 現在時刻の x 位置（チャート外 = null）
+  const { hour: nowHour } = nowJST();
+  const h24 = nowHour < 6 ? null : nowHour;
+  let nowX: number | null = null;
+  if (h24 !== null) {
+    for (let i = 0; i < WAVE_SLOT_HRS.length - 1; i++) {
+      if (h24 >= WAVE_SLOT_HRS[i] && h24 < WAVE_SLOT_HRS[i + 1]) {
+        const span = WAVE_SLOT_HRS[i + 1] - WAVE_SLOT_HRS[i];
+        nowX = WAVE_XS[i] + ((h24 - WAVE_SLOT_HRS[i]) / span) * ((WAVE_XS[i + 1] ?? 308) - WAVE_XS[i]);
+        break;
+      }
+    }
+  }
+
+  const gridLevels = [0.5, 1.0, 1.5].filter((gl) => gl < maxH);
+
+  return (
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>波高推移（今日）</Text>
+      <Svg width="100%" height={95} viewBox="0 0 308 90" preserveAspectRatio="none">
+        {gridLevels.map((gl) => (
+          <Line key={gl}
+            x1={0} y1={toY(gl)} x2={308} y2={toY(gl)}
+            stroke="rgba(255,255,255,0.07)" strokeWidth={1}
+          />
+        ))}
+        <Path d={bandPath} fill="rgba(45,212,191,0.10)" />
+        <Path d={midArea} fill="rgba(45,212,191,0.06)" />
+        <Path d={midLine} fill="none" stroke="#2DD4BF" strokeWidth={2} />
+        {nowX !== null && (
+          <Line
+            x1={nowX} y1={0} x2={nowX} y2={90}
+            stroke="rgba(249,115,22,0.85)" strokeWidth={1.5} strokeDasharray="3,3"
+          />
+        )}
+      </Svg>
+      <View style={styles.tideTimeRow}>
+        {['6時', '9時', '12時', '15時', '18時', '21時', '翌0時'].map((l) => (
+          <Text key={l} style={styles.tideTimeLabel}>{l}</Text>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 function TideChart({ area }: { area: string }) {
   const now = new Date();
   const { line, area: fillPath } = buildTideSvgPath(now, area);
