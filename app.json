@@ -8,9 +8,11 @@
     "scheme": "naminative",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.sutekinajikan.nami"
     },
     "android": {
+      "package": "com.sutekinajikan.nami",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
