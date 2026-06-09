@@ -41,6 +41,7 @@ async function fetchAreaRows(area: string): Promise<AreaSpotRow[]> {
   const { date: todayStr } = nowJST();
   const yesterdayStr = getYesterdayJSTStr();
   const rows: AreaSpotRow[] = [];
+  const rowErrors: string[] = [];
 
   areaSpots.forEach((spot, i) => {
     const r = results[i];
@@ -81,12 +82,12 @@ async function fetchAreaRows(area: string): Promise<AreaSpotRow[]> {
         geoIdx: i,
         waveHeightDelta,
       });
-    } catch {
-      // skip failed spot
+    } catch (err) {
+      rowErrors.push(`${spot.name}: ${(err as Error)?.message ?? String(err)}`);
     }
   });
 
-  if (rows.length === 0) throw new Error('全スポット失敗 / ' + NAMI_FETCH_ERRORS.slice(0, 3).join(' | '));
+  if (rows.length === 0) throw new Error('全スポット失敗 / row=' + rowErrors.slice(0, 2).join(' | ') + ' / fetch=' + NAMI_FETCH_ERRORS.slice(0, 2).join(' | '));
   return rows;
 }
 
