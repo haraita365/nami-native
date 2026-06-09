@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router';
-import { Platform, type ColorValue } from 'react-native';
+import { Waves, CalendarDays, Map, ShoppingBag, User } from 'lucide-react-native';
 
-const TINT = '#2DD4BF';
+const TINT     = '#2DD4BF';
 const INACTIVE = '#6B7280';
 
 export default function TabLayout() {
@@ -25,57 +25,37 @@ export default function TabLayout() {
         name="index"
         options={{
           title: '波予報',
-          tabBarIcon: ({ color }) => (
-            <TabIcon emoji="🌊" color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <Waves color={color} size={size} />,
         }}
       />
       <Tabs.Screen
         name="forecast"
         options={{
           title: '16日間',
-          tabBarIcon: ({ color }) => (
-            <TabIcon emoji="📅" color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <CalendarDays color={color} size={size} />,
         }}
       />
       <Tabs.Screen
         name="map"
         options={{
           title: 'マップ',
-          tabBarIcon: ({ color }) => (
-            <TabIcon emoji="🗺️" color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <Map color={color} size={size} />,
         }}
       />
       <Tabs.Screen
         name="shop"
         options={{
           title: 'ショップ',
-          tabBarIcon: ({ color }) => (
-            <TabIcon emoji="🏄" color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <ShoppingBag color={color} size={size} />,
         }}
       />
       <Tabs.Screen
         name="mypage"
         options={{
           title: 'マイページ',
-          tabBarIcon: ({ color }) => (
-            <TabIcon emoji="👤" color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <User color={color} size={size} />,
         }}
       />
     </Tabs>
-  );
-}
-
-import { Text, View } from 'react-native';
-
-function TabIcon({ emoji, color }: { emoji: string; color: ColorValue }) {
-  return (
-    <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ fontSize: Platform.OS === 'ios' ? 22 : 20 }}>{emoji}</Text>
-    </View>
   );
 }
