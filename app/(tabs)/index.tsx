@@ -69,7 +69,7 @@ export default function HomeScreen() {
   const [areaModalVisible, setAreaModalVisible] = useState(false);
   const [sort, setSort] = useState<'geo' | 'score'>('geo');
 
-  const { data: rows, isLoading, isError, error, refetch, isFetching } = useAreaWaveData(homeArea);
+  const { data: rows, isLoading, isError, refetch, isFetching } = useAreaWaveData(homeArea);
   const { alert: tsunamiAlert, fetchError: tsunamiFetchError } = useTsunamiData(homeArea);
 
   const isBootLoading = levelLoading || areaLoading;
@@ -212,9 +212,6 @@ export default function HomeScreen() {
         {isError && !isLoading && (
           <View style={styles.errorBox}>
             <Text style={styles.errorText}>データの取得に失敗しました</Text>
-            {error?.message ? (
-              <Text style={styles.errorDetail}>{error.message}</Text>
-            ) : null}
             <Pressable
               style={({ pressed }) => [styles.retryBtn, pressed && { opacity: 0.7 }]}
               onPress={() => void refetch()}
@@ -431,8 +428,7 @@ const styles = StyleSheet.create({
   loadingBox: { alignItems: 'center', paddingVertical: 40, gap: 12 },
   loadingText:{ fontSize: 13, color: C.muted },
   errorBox:   { alignItems: 'center', paddingVertical: 40, gap: 12 },
-  errorText:   { fontSize: 14, color: C.textSoft },
-  errorDetail: { fontSize: 11, color: '#F26B6B', fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', textAlign: 'center', paddingHorizontal: 16 },
+  errorText:  { fontSize: 14, color: C.textSoft },
   retryBtn: {
     backgroundColor: C.tealBg, borderRadius: 12,
     borderWidth: 1, borderColor: C.tealBorder,

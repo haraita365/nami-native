@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import {
   fetchSpotData, extractSlots, getCurrentSlot,
-  nowJST, getYesterdayJSTStr, NAMI_FETCH_ERRORS,
+  nowJST, getYesterdayJSTStr,
 } from './api';
 import { getWindCondition } from './wind';
 import { getConfidenceStars } from './wave';
@@ -41,7 +41,6 @@ async function fetchAreaRows(area: string): Promise<AreaSpotRow[]> {
   const { date: todayStr } = nowJST();
   const yesterdayStr = getYesterdayJSTStr();
   const rows: AreaSpotRow[] = [];
-  const rowErrors: string[] = [];
 
   areaSpots.forEach((spot, i) => {
     const r = results[i];
@@ -82,12 +81,12 @@ async function fetchAreaRows(area: string): Promise<AreaSpotRow[]> {
         geoIdx: i,
         waveHeightDelta,
       });
-    } catch (err) {
-      rowErrors.push(`${spot.name}: ${(err as Error)?.message ?? String(err)}`);
+    } catch {
+      // skip failed spot
     }
   });
 
-  if (rows.length === 0) throw new Error('全スポット失敗 / row=' + rowErrors.slice(0, 2).join(' | ') + ' / fetch=' + NAMI_FETCH_ERRORS.slice(0, 2).join(' | '));
+  if (rows.length === 0) throw new Error('エリア内の波予報データを取得できませんでした');
   return rows;
 }
 
