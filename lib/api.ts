@@ -159,8 +159,12 @@ export async function fetchSpotData(
 ): Promise<RawHourlyData> {
   NAMI_FETCH_ERRORS.length = 0;
   const pastParam = pastDays > 0 ? `&past_days=${pastDays}` : '';
-  // React Native: キャッシュは React Query で管理するため next: は不要
-  const to = (): RequestInit => ({ signal: AbortSignal.timeout(6000) });
+  // AbortSignal.timeout は Hermes 未対応のため AbortController で代替
+  const to = (): RequestInit => {
+    const ctrl = new AbortController();
+    setTimeout(() => ctrl.abort(), 6000);
+    return { signal: ctrl.signal };
+  };
 
   const [gfsRaw, ecmwfRaw, mfwamRaw, weather] = await Promise.all([
     // GFS（Open-Meteoデフォルト、スウェル含む）
