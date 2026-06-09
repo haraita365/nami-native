@@ -4,6 +4,7 @@ import {
   View, Text, ScrollView, ActivityIndicator, StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Svg, Path, Line, Circle } from 'react-native-svg';
 import { SPOTS } from '@/lib/spots';
 import { fetchSpotDataFull, getCurrentSlot, nowJST } from '@/lib/api';
 import { getWindCondition, getDirectionLabel } from '@/lib/wind';
@@ -12,6 +13,7 @@ import { scoreSlot } from '@/lib/scoring';
 import { scoreToStars, computeSimpleLevelScore } from '@/lib/levelScore';
 import { getAptitude } from '@/lib/level';
 import { useLevel } from '@/lib/useLevel';
+import { buildTideSvgPath, getDayTides, fmtTime } from '@/lib/tide';
 
 // ── ヘルパー（index.tsx と同じ考え方） ───────────────────────────
 function stars(n: number): string {
@@ -232,6 +234,9 @@ export default function SpotDetailScreen() {
           </View>
         </View>
 
+        {/* ── 潮位グラフ ─────────────────────────────── */}
+        <TideChart area={spot.area} />
+
         <View style={{ height: 32 }} />
       </ScrollView>
     </SafeAreaView>
@@ -239,6 +244,61 @@ export default function SpotDetailScreen() {
 }
 
 // ── 小コンポーネント ──────────────────────────────────────────────
+function TideChart({ area }: { area: string }) {
+  const now = new Date();
+  const { line, area: fillPath } = buildTideSvgPath(now, area);
+  const events = getDayTides(now, area);
+  const nowX = parseFloat(
+    (((now.getHours() * 60 + now.getMinutes()) / 1440) * 360).toFixed(1),
+  );
+
+  return (
+    <View style={styles.card}>
+      <View style={styles.tideHeader}>
+        <Text style={styles.cardTitle}>潮位グラフ</Text>
+        <Text style={styles.tideNote}>※概算値（±1〜2h・±20cm）</Text>
+      </View>
+      <Svg width="100%" height={80} viewBox="0 0 360 76" preserveAspectRatio="none">
+        <Path d={fillPath} fill="rgba(45,212,191,0.08)" />
+        <Path d={line} fill="none" stroke="#2DD4BF" strokeWidth={2} />
+        <Line
+          x1={nowX} y1={0} x2={nowX} y2={76}
+          stroke="rgba(249,115,22,0.85)" strokeWidth={1.5} strokeDasharray="3,3"
+        />
+        {events.map((ev, i) => {
+          const ex = parseFloat(
+            (((ev.time.getHours() * 60 + ev.time.getMinutes()) / 1440) * 360).toFixed(1),
+          );
+          const ey = ev.type === 'high' ? 10 : 65;
+          return (
+            <Circle
+              key={i} cx={ex} cy={ey} r={3.5}
+              fill={ev.type === 'high' ? '#2DD4BF' : '#6B7280'}
+            />
+          );
+        })}
+      </Svg>
+      <View style={styles.tideTimeRow}>
+        {['0時', '6時', '12時', '18時', '24時'].map((h) => (
+          <Text key={h} style={styles.tideTimeLabel}>{h}</Text>
+        ))}
+      </View>
+      {events.length > 0 && (
+        <View style={styles.tideEventRow}>
+          {events.map((ev, i) => (
+            <View key={i} style={styles.tideEventChip}>
+              <Text style={[styles.tideEventType, { color: ev.type === 'high' ? C.teal : C.muted }]}>
+                {ev.type === 'high' ? '▲ 満潮' : '▼ 干潮'}
+              </Text>
+              <Text style={styles.tideEventMeta}>{fmtTime(ev.time)}  {ev.heightCm}cm</Text>
+            </View>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
 function InfoRow({
   label, value, highlight,
 }: { label: string; value: string; highlight?: 'good' | 'bad' | null }) {
@@ -328,6 +388,16 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 20, fontWeight: '800', color: C.text },
   statSub:   { fontSize: 11, color: C.textSoft },
   statDelta: { fontSize: 11, fontWeight: '700', marginTop: 2 },
+
+  // 潮位グラフ
+  tideHeader:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  tideNote:      { fontSize: 10, color: C.muted },
+  tideTimeRow:   { flexDirection: 'row', justifyContent: 'space-between', marginTop: 2 },
+  tideTimeLabel: { fontSize: 9, color: C.muted },
+  tideEventRow:  { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 2 },
+  tideEventChip: { gap: 2 },
+  tideEventType: { fontSize: 11, fontWeight: '700' as const },
+  tideEventMeta: { fontSize: 11, color: C.textSoft },
 
   // 風・うねり情報テーブル
   infoTable: { gap: 0 },
