@@ -95,6 +95,10 @@ export function useAreaWaveData(area: string) {
     queryKey: ['area-wave', area],
     queryFn: () => fetchAreaRows(area),
     staleTime: 30 * 60 * 1000,
-    retry: 2,
+    retry: (failureCount, error) => {
+      if ((error as Error)?.message?.includes('429')) return false;
+      return failureCount < 2;
+    },
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
   });
 }
