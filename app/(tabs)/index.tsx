@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useRouter } from 'expo-router';
 import {
   View, Text, ScrollView, Pressable, ActivityIndicator,
   Modal, FlatList, RefreshControl, Linking, StyleSheet,
@@ -299,6 +300,7 @@ type LevelArg = Parameters<typeof getAptitude>[4];
 function BestSpotCard({
   row, level, hasTsunami,
 }: { row: AreaSpotRow; level: LevelArg | null; hasTsunami: boolean }) {
+  const router = useRouter();
   const apt = level
     ? getAptitude(row.waveHeight, row.wavePeriod, row.windCondition, row.windSpeed, level)
     : null;
@@ -309,7 +311,10 @@ function BestSpotCard({
   const sc = scoreColor(displayScore);
 
   return (
-    <View style={[styles.summaryCard, hasTsunami && styles.summaryCardDimmed]}>
+    <Pressable
+      style={({ pressed }) => [styles.summaryCard, hasTsunami && styles.summaryCardDimmed, pressed && { opacity: 0.7 }]}
+      onPress={() => router.push(`/spot/${row.id}`)}
+    >
       <Text style={styles.summaryLabel}>このエリアのベストスポット</Text>
       <View style={styles.summaryNameRow}>
         <Text style={styles.summaryName}>{row.name}</Text>
@@ -333,7 +338,7 @@ function BestSpotCard({
           {windLabel(row.windCondition, row.windDirection)}  {row.windSpeed.toFixed(1)}m/s
         </Text>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -341,6 +346,7 @@ function BestSpotCard({
 function SpotRow({
   row, level, hasTsunami,
 }: { row: AreaSpotRow; level: LevelArg | null; hasTsunami: boolean }) {
+  const router = useRouter();
   const apt = level
     ? getAptitude(row.waveHeight, row.wavePeriod, row.windCondition, row.windSpeed, level)
     : null;
@@ -352,7 +358,10 @@ function SpotRow({
   const wc = windColor(row.windCondition);
 
   return (
-    <View style={[styles.spotRow, hasTsunami && styles.spotRowDimmed]}>
+    <Pressable
+      style={({ pressed }) => [styles.spotRow, hasTsunami && styles.spotRowDimmed, pressed && { opacity: 0.7 }]}
+      onPress={() => router.push(`/spot/${row.id}`)}
+    >
       <View style={styles.spotLeft}>
         <View style={styles.spotNameRow}>
           <Text style={styles.spotName}>{row.name}</Text>
@@ -383,7 +392,7 @@ function SpotRow({
           </Text>
         )}
       </View>
-    </View>
+    </Pressable>
   );
 }
 
