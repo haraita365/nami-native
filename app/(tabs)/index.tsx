@@ -1,14 +1,15 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import {
   View, Text, ScrollView, Pressable, ActivityIndicator,
   Modal, FlatList, RefreshControl, Linking, StyleSheet,
   Platform,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLevel } from '@/lib/useLevel';
-import { useHomeArea } from '@/lib/useHomeArea';
-import { getAptitude } from '@/lib/level';
+import { useHomeArea, HOME_AREA_KEY } from '@/lib/useHomeArea';
+import { getAptitude, LEVEL_LABEL } from '@/lib/level';
 import { computeSimpleLevelScore } from '@/lib/levelScore';
 import { getWeatherAlert } from '@/lib/alert';
 import { AREA_ORDER } from '@/lib/spots';
@@ -64,12 +65,36 @@ const WEATHER_COLORS = {
   caution: { bg: 'rgba(250,179,71,0.07)',  border: 'rgba(250,179,71,0.28)',  text: '#FAB347' },
 };
 
+// エリア傾向テキスト自動生成
+function generateAreaTrend(rows: AreaSpotRow[]): string {
+  if (rows.length === 0) return '';
+  const total = rows.length;
+  const offCount = rows.filter(r => r.windCondition === 'offshore').length;
+  const onCount  = rows.filter(r => r.windCondition === 'onshore').length;
+  const avgWave  = rows.reduce((s, r) => s + r.waveHeight, 0) / total;
+  const parts: string[] = [];
+  if      (offCount === total)              parts.push('全スポットでオフショア');
+  else if (offCount >= total * 0.6)         parts.push('多くがオフショア条件');
+  else if (onCount  >= total * 0.6)         parts.push('多くがオンショア');
+  if      (avgWave >= 1.5)  parts.push('波が大きめ');
+  else if (avgWave >= 0.8)  parts.push('胸前後のサイズ');
+  else if (avgWave >= 0.3)  parts.push('小波傾向');
+  else                      parts.push('フラット');
+  return parts.join('・');
+}
+
 // ── メイン画面 ────────────────────────────────────────────────────
 export default function HomeScreen() {
   const [level, , levelLoading] = useLevel();
   const [homeArea, setHomeArea, areaLoading] = useHomeArea();
   const [areaModalVisible, setAreaModalVisible] = useState(false);
   const [sort, setSort] = useState<'geo' | 'score'>('geo');
+  const [homeAreaNeverSet, setHomeAreaNeverSet] = useState(false);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+
+  useEffect(() => {
+    AsyncStorage.getItem(HOME_AREA_KEY).then(val => setHomeAreaNeverSet(val === null));
+  }, []);
 
   const { data: rows, isLoading, isError, refetch, isFetching } = useAreaWaveData(homeArea);
   const { alert: tsunamiAlert, fetchError: tsunamiFetchError } = useTsunamiData(homeArea);
@@ -113,6 +138,8 @@ export default function HomeScreen() {
     return worst;
   }, [rows]);
 
+  const trendText = useMemo(() => rows ? generateAreaTrend(rows) : '', [rows]);
+
   if (isBootLoading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -125,9 +152,12 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.container}>
       {/* ── ヘッダー ──────────────────────────────────────── */}
       <View style={styles.header}>
-        <View style={styles.logoRow}>
-          <Text style={styles.logo}>NAMI</Text>
-          <Text style={styles.logoBeta}>β</Text>
+        <View>
+          <View style={styles.logoRow}>
+            <Text style={styles.logo}>NAMI（仮）</Text>
+            <Text style={styles.logoBeta}>β版</Text>
+          </View>
+          <Text style={styles.logoBetaNote}>※β版・改善中</Text>
         </View>
         <Pressable
           style={({ pressed }) => [styles.areaPill, pressed && { opacity: 0.7 }]}
@@ -188,6 +218,24 @@ export default function HomeScreen() {
           </Pressable>
         ) : null}
 
+        {/* 初回訪問バナー */}
+        {homeAreaNeverSet && !bannerDismissed && !isLoading && (
+          <Pressable
+            style={styles.firstVisitBanner}
+            onPress={() => setAreaModalVisible(true)}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={styles.firstVisitTitle}>ホームエリアを設定しましょう</Text>
+              <Text style={styles.firstVisitBody}>
+                お近くのエリアを選ぶと起動時にすぐ予測が確認できます →
+              </Text>
+            </View>
+            <Pressable onPress={() => setBannerDismissed(true)} hitSlop={12}>
+              <Text style={styles.firstVisitClose}>✕</Text>
+            </Pressable>
+          </Pressable>
+        )}
+
         {/* 荒天アラートバナー */}
         {!tsunamiAlert && !tsunamiFetchError && weatherAlert ? (
           <View style={[
@@ -225,7 +273,7 @@ export default function HomeScreen() {
 
         {/* ベストスポットカード */}
         {bestRow && !isLoading && (
-          <BestSpotCard row={bestRow} level={level} hasTsunami={!!tsunamiAlert} />
+          <BestSpotCard row={bestRow} level={level} hasTsunami={!!tsunamiAlert} trendText={trendText} />
         )}
 
         {/* ソートトグル */}
@@ -277,6 +325,7 @@ export default function HomeScreen() {
                   style={[styles.modalAreaRow, active && styles.modalAreaRowActive]}
                   onPress={() => {
                     void setHomeArea(item);
+                    setHomeAreaNeverSet(false);
                     setAreaModalVisible(false);
                   }}
                   android_ripple={{ color: 'rgba(255,255,255,0.06)' }}
@@ -299,8 +348,8 @@ export default function HomeScreen() {
 type LevelArg = Parameters<typeof getAptitude>[4];
 
 function BestSpotCard({
-  row, level, hasTsunami,
-}: { row: AreaSpotRow; level: LevelArg | null; hasTsunami: boolean }) {
+  row, level, hasTsunami, trendText,
+}: { row: AreaSpotRow; level: LevelArg | null; hasTsunami: boolean; trendText: string }) {
   const router = useRouter();
   const apt = level
     ? getAptitude(row.waveHeight, row.wavePeriod, row.windCondition, row.windSpeed, level)
@@ -316,7 +365,9 @@ function BestSpotCard({
       style={({ pressed }) => [styles.summaryCard, hasTsunami && styles.summaryCardDimmed, pressed && { opacity: 0.7 }]}
       onPress={() => router.push(`/spot/${row.id}`)}
     >
-      <Text style={styles.summaryLabel}>このエリアのベストスポット</Text>
+      <Text style={styles.summaryLabel}>
+        {level ? `${LEVEL_LABEL[level]}向き ベスト予測` : '今日のベスト予測'}
+      </Text>
       <View style={styles.summaryNameRow}>
         <Text style={styles.summaryName}>{row.name}</Text>
         {apt && aptC && (
@@ -329,16 +380,24 @@ function BestSpotCard({
         <Text style={[styles.summaryStarText, { color: hasTsunami ? C.muted : sc }]}>
           {stars(hasTsunami ? 0 : Math.round(displayScore / 20))}
         </Text>
+        {!hasTsunami && row.waveHeightDelta != null && (
+          <Text style={[styles.summaryDelta, { color: deltaColor(row.waveHeightDelta) }]}>
+            昨日比 {formatDelta(row.waveHeightDelta)}
+          </Text>
+        )}
         {hasTsunami && <Text style={styles.tsunamiGrayout}>（津波警報発令中）</Text>}
       </View>
       <View style={styles.summaryDetail}>
         <Text style={styles.summaryDetailText}>
-          {row.waveHeight.toFixed(1)}m  {getWaveSizeRangeLabel(row.waveMin, row.waveMax)}  周期{row.wavePeriod.toFixed(0)}s
+          {row.waveHeight.toFixed(1)}m  {getWaveSizeRangeLabel(row.waveMin, row.waveMax)}
         </Text>
         <Text style={[styles.summaryWindText, { color: windColor(row.windCondition) }]}>
           {windLabel(row.windCondition, row.windDirection)}  {row.windSpeed.toFixed(1)}m/s
         </Text>
       </View>
+      {trendText.length > 0 && (
+        <Text style={styles.summaryTrend}>エリア傾向: {trendText}</Text>
+      )}
     </Pressable>
   );
 }
@@ -364,34 +423,39 @@ function SpotRow({
       onPress={() => router.push(`/spot/${row.id}`)}
     >
       <View style={styles.spotLeft}>
+        {/* Row1: 名前 + 星(inline) + 適性バッジ */}
         <View style={styles.spotNameRow}>
           <Text style={styles.spotName}>{row.name}</Text>
+          <Text style={[styles.spotStarsInline, { color: hasTsunami ? C.muted : sc }]}>
+            {stars(hasTsunami ? 0 : Math.round(displayScore / 20))}
+          </Text>
           {apt && aptC && (
             <View style={[styles.aptBadge, { backgroundColor: aptC.bg, borderColor: aptC.border }]}>
               <Text style={[styles.aptBadgeText, { color: aptC.color }]}>{apt}</Text>
             </View>
           )}
         </View>
-        <Text style={styles.spotWave}>
-          {row.waveHeight.toFixed(1)}m · {getWaveSizeRangeLabel(row.waveMin, row.waveMax)}  周期{row.wavePeriod.toFixed(0)}s
-        </Text>
+        {/* Row2: 体感サイズ + 風 + 信頼度 + 前日比 */}
         <View style={styles.spotMetaRow}>
+          <Text style={styles.spotSizeLabel}>{getWaveSizeRangeLabel(row.waveMin, row.waveMax)}</Text>
           <Text style={[styles.spotWind, { color: wc }]}>
             {windLabel(row.windCondition, row.windDirection)}  {row.windSpeed.toFixed(1)}m/s
           </Text>
           <Text style={styles.spotConf}>信頼度:{row.confidenceStr}</Text>
+          {row.waveHeightDelta != null && (
+            <Text style={[styles.spotDelta, { color: deltaColor(row.waveHeightDelta) }]}>
+              {formatDelta(row.waveHeightDelta)}
+            </Text>
+          )}
         </View>
       </View>
 
+      {/* Right: 波高大きく + アロー */}
       <View style={styles.spotRight}>
-        <Text style={[styles.spotStars, { color: hasTsunami ? C.muted : sc }]}>
-          {stars(hasTsunami ? 0 : Math.round(displayScore / 20))}
+        <Text style={[styles.spotWaveMain, { color: hasTsunami ? C.muted : sc }]}>
+          {row.waveHeight.toFixed(1)}m
         </Text>
-        {row.waveHeightDelta != null && (
-          <Text style={[styles.spotDelta, { color: deltaColor(row.waveHeightDelta) }]}>
-            {formatDelta(row.waveHeightDelta)}
-          </Text>
-        )}
+        <Text style={styles.spotArrow}>›</Text>
       </View>
     </Pressable>
   );
@@ -422,9 +486,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 10,
     borderBottomWidth: 1, borderBottomColor: C.border,
   },
-  logoRow: { flexDirection: 'row', alignItems: 'baseline', gap: 3 },
-  logo:    { fontSize: 22, fontWeight: '900', color: C.teal, letterSpacing: 1 },
-  logoBeta:{ fontSize: 11, fontWeight: '700', color: C.muted },
+  logoRow:     { flexDirection: 'row', alignItems: 'baseline', gap: 3 },
+  logo:        { fontSize: 22, fontWeight: '900', color: C.teal, letterSpacing: 1 },
+  logoBeta:    { fontSize: 11, fontWeight: '700', color: C.muted },
+  logoBetaNote:{ fontSize: 10, color: C.muted, marginTop: 1 },
   areaPill: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: C.tealBg, borderRadius: 20,
@@ -485,6 +550,8 @@ const styles = StyleSheet.create({
   summaryDetail:  { flexDirection: 'row', gap: 14, flexWrap: 'wrap', marginTop: 2 },
   summaryDetailText:{ fontSize: 13, color: C.textSoft },
   summaryWindText:  { fontSize: 13, fontWeight: '600' },
+  summaryDelta:     { fontSize: 11, fontWeight: '600' },
+  summaryTrend:     { fontSize: 11, color: C.muted, marginTop: 2 },
 
   // ソートトグル
   sortRow: { flexDirection: 'row', gap: 8 },
@@ -506,15 +573,28 @@ const styles = StyleSheet.create({
   },
   spotRowDimmed: { opacity: 0.45 },
   spotLeft:      { flex: 1, gap: 4 },
-  spotRight:     { alignItems: 'flex-end', gap: 4, minWidth: 56 },
-  spotNameRow:   { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  spotName:      { fontSize: 14, fontWeight: '700', color: C.text, flexShrink: 1 },
-  spotWave:      { fontSize: 12, color: C.textSoft },
-  spotMetaRow:   { flexDirection: 'row', gap: 10, flexWrap: 'wrap', alignItems: 'center' },
-  spotWind:      { fontSize: 12, fontWeight: '600' },
-  spotConf:      { fontSize: 11, color: C.muted },
-  spotStars:     { fontSize: 14, fontWeight: '700', letterSpacing: 0.5 },
-  spotDelta:     { fontSize: 12, fontWeight: '600' },
+  spotRight:       { alignItems: 'flex-end', gap: 2, minWidth: 72 },
+  spotNameRow:     { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  spotName:        { fontSize: 14, fontWeight: '700', color: C.text, flexShrink: 1 },
+  spotSizeLabel:   { fontSize: 12, color: C.textSoft },
+  spotMetaRow:     { flexDirection: 'row', gap: 8, flexWrap: 'wrap', alignItems: 'center' },
+  spotWind:        { fontSize: 12, fontWeight: '600' },
+  spotConf:        { fontSize: 11, color: C.muted },
+  spotStarsInline: { fontSize: 11, fontWeight: '600', letterSpacing: 0.5 },
+  spotWaveMain:    { fontSize: 16, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  spotArrow:       { fontSize: 13, color: C.muted },
+  spotDelta:       { fontSize: 11, fontWeight: '600' },
+
+  // 初回訪問バナー
+  firstVisitBanner: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: 'rgba(45,212,191,0.07)',
+    borderRadius: 12, borderWidth: 1, borderColor: 'rgba(45,212,191,0.25)',
+    padding: 13, gap: 10,
+  },
+  firstVisitTitle: { fontSize: 13, fontWeight: '700', color: C.teal, marginBottom: 2 },
+  firstVisitBody:  { fontSize: 12, color: C.textSoft, lineHeight: 17 },
+  firstVisitClose: { fontSize: 14, color: C.muted, padding: 4 },
 
   // aptバッジ
   aptBadge:     { borderRadius: 6, borderWidth: 1, paddingHorizontal: 6, paddingVertical: 2 },

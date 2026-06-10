@@ -29,11 +29,16 @@ export function formatWaveRange(min: number, max: number): string {
   return `${minStr}〜${maxStr}m`;
 }
 
-// Wave size label covering min→max range
+// Wave size label covering min→max range.
+// getWaveSizeLabel returns compound labels like 'コシ〜ムネ', so we extract
+// the leading word of lo and trailing word of hi to avoid 'コシ〜ムネ〜ムネ〜カタ'.
 export function getWaveSizeRangeLabel(min: number, max: number): string {
-  const lo = getWaveSizeLabel(min);
-  const hi = getWaveSizeLabel(max);
-  return lo === hi ? lo : `${lo}〜${hi}`;
+  const loFull = getWaveSizeLabel(min);
+  const hiFull = getWaveSizeLabel(max);
+  if (loFull === hiFull) return loFull;
+  const lo = loFull.split('〜')[0] ?? loFull;
+  const hi = hiFull.split('〜').at(-1) ?? hiFull;
+  return `${lo}〜${hi}`;
 }
 
 // Confidence level based on model spread and number of models.
