@@ -157,27 +157,28 @@ export default function ForecastScreen() {
 
       {/* ── スポット選択（横スクロールタブ） ───────────── */}
       {areaSpots.length > 1 && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.spotTabsBar}
-          contentContainerStyle={styles.spotTabsContent}
-        >
-          {areaSpots.map(s => {
-            const active = s.id === selectedSpot?.id;
-            return (
-              <Pressable
-                key={s.id}
-                style={[styles.spotTab, active && styles.spotTabActive]}
-                onPress={() => setSelectedSpotId(s.id)}
-              >
-                <Text style={[styles.spotTabText, active && styles.spotTabTextActive]}>
-                  {s.name}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+        <View style={styles.spotTabsWrapper}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.spotTabsContent}
+          >
+            {areaSpots.map(s => {
+              const active = s.id === selectedSpot?.id;
+              return (
+                <Pressable
+                  key={s.id}
+                  style={[styles.spotTab, active && styles.spotTabActive]}
+                  onPress={() => setSelectedSpotId(s.id)}
+                >
+                  <Text style={[styles.spotTabText, active && styles.spotTabTextActive]}>
+                    {s.name}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
       )}
 
       {/* ── スクロール領域 ──────────────────────────────── */}
@@ -407,7 +408,12 @@ const styles = StyleSheet.create({
   areaPillChev: { fontSize: 11, color: C.teal },
 
   // スポットタブ（横スクロール）
-  spotTabsBar:     { borderBottomWidth: 1, borderBottomColor: C.border },
+  // height固定でScrollViewが縦方向に膨らむのを防ぐ
+  spotTabsWrapper: {
+    height: 44, flexShrink: 0,
+    borderBottomWidth: 1, borderBottomColor: C.border,
+    overflow: 'hidden',
+  },
   spotTabsContent: {
     paddingHorizontal: 16, paddingVertical: 8,
     gap: 8, flexDirection: 'row', alignItems: 'center',

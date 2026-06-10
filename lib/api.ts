@@ -167,15 +167,15 @@ export async function fetchSpotData(
     // GFS（Open-Meteoデフォルト、スウェル含む）
     fetch(marineUrl(lat, lng, pastParam, forecastDays), to())
       .then((r) => { if (!r.ok) throw new Error(`Marine GFS ${r.status}`); return r.json(); })
-      .catch((e) => { console.error('[NAMI] GFS wave fetch failed:', e); return null; }),
+      .catch((e) => { console.warn('[NAMI] GFS wave fetch failed:', e); return null; }),
     // ECMWF WAM（最高精度、約15日間）
     fetch(marineUrl(lat, lng, pastParam, forecastDays, 'ecmwf_wam', ENSEMBLE_FIELDS), to())
       .then((r) => r.ok ? r.json() : Promise.reject(new Error(`ECMWF ${r.status}`)))
-      .catch((e) => { console.error('[NAMI] ECMWF WAM fetch failed:', e); return null; }),
+      .catch((e) => { console.warn('[NAMI] ECMWF WAM fetch failed:', e); return null; }),
     // MeteoFrance MFWAM（約10日間、ECMWF風駆動）
     fetch(marineUrl(lat, lng, pastParam, forecastDays, 'meteofrance_wave', ENSEMBLE_FIELDS), to())
       .then((r) => r.ok ? r.json() : Promise.reject(new Error(`MFWAM ${r.status}`)))
-      .catch((e) => { console.error('[NAMI] MFWAM fetch failed:', e); return null; }),
+      .catch((e) => { console.warn('[NAMI] MFWAM fetch failed:', e); return null; }),
     // 風・天気（GFS大気モデル — 必須）
     fetch(
       `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}` +
@@ -183,7 +183,7 @@ export async function fetchSpotData(
       `&wind_speed_unit=ms&timezone=Asia%2FTokyo&forecast_days=${forecastDays}${pastParam}`,
       to()
     ).then((r) => { if (!r.ok) throw new Error(`Weather API ${r.status}`); return r.json(); })
-     .catch((e) => { console.error('[NAMI] Weather API fetch failed:', e); return null; }),
+     .catch((e) => { console.warn('[NAMI] Weather API fetch failed:', e); return null; }),
   ]);
 
   // 全波浪モデルが取得失敗 → エラーとして上位に伝播（低信頼と混同しない）
